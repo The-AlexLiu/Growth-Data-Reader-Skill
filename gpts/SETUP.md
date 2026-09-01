@@ -1,12 +1,33 @@
 # GPTs 配置
 
+## 0. 基本信息
+
+- 名称：`INIA Growth Data Analyst`
+- 描述：`只读分析 INIA 的 GA4、Google Search Console 与 Google Ads 数据，输出投放、SEO、落地页和转化优化建议。`
+- 推荐能力：开启“代码解释器与数据分析”；Web Search 按需开启；不要同时启用 Apps。
+
+建议的对话开场白：
+
+```text
+分析最近 7 个完整日的网站、自然搜索和广告表现
+检查昨天 Google Ads 花费和 GA4 购买收入是否异常
+找出最近 30 天高流量低转化的落地页
+分析自然搜索点击下降来自曝光、排名还是 CTR
+```
+
 ## 1. Instructions
 
 将 [GPT_INSTRUCTIONS.md](GPT_INSTRUCTIONS.md) 全文粘贴到 GPT 的 Instructions。
 
 ## 2. Action 架构
 
-在“添加操作”页面把 [openapi.yaml](openapi.yaml) 全文粘贴到“架构”。
+在“添加操作”页面点击“通过 URL 导入”，填写：
+
+```text
+https://raw.githubusercontent.com/The-AlexLiu/Growth-Data-Reader-Skill/main/gpts/openapi.yaml
+```
+
+也可以把 [openapi.yaml](openapi.yaml) 全文粘贴到“架构”。
 
 ## 3. 身份验证
 
