@@ -1,0 +1,23 @@
+{
+  "profileId": "example-brand-us",
+  "displayName": "Example Brand US",
+  "website": "https://example.com",
+  "ga4": {
+    "accountId": "accounts/111111111",
+    "propertyName": "properties/123456789",
+    "propertyDisplayName": "Example Brand",
+    "timezone": "America/Los_Angeles",
+    "currency": "USD"
+  },
+  "gsc": {
+    "siteUrl": "sc-domain:example.com",
+    "permissionLevel": "siteOwner"
+  },
+  "googleAds": {
+    "customerId": "1234567890",
+    "loginCustomerId": "0987654321",
+    "descriptiveName": "Example Brand Ads",
+    "timezone": "America/Los_Angeles",
+    "currency": "USD"
+  }
+}

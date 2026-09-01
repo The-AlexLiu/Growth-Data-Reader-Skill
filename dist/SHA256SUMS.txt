@@ -1,0 +1,2 @@
+d34c9ff4105789bbece91e84607ff29e40db59e632aa945379edf8153619bf28  growth-data-reader-aily-v1.0.0.skill
+20220e3586585529537cdb915207ddebbe7ab9424ddb80b1789a609beb2dfd68  growth-data-reader-workbuddy-v1.0.0.zip
