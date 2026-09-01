@@ -18,6 +18,30 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  profileId:
+                    type: string
+                  displayName:
+                    type: string
+                  website:
+                    type: string
+                  ga4:
+                    type: object
+                    properties:
+                      propertyName:
+                        type: string
+                  gsc:
+                    type: object
+                    properties:
+                      siteUrl:
+                        type: string
+                  googleAds:
+                    type: object
+                    properties:
+                      customerId:
+                        type: string
+                      loginCustomerId:
+                        type: string
                 additionalProperties: true
   /v1/ga4/report:
     post:
@@ -37,6 +61,25 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  dimensionHeaders:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Ga4Header"
+                  metricHeaders:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Ga4Header"
+                  rows:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Ga4Row"
+                  totals:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Ga4Row"
+                  rowCount:
+                    type: integer
                 additionalProperties: true
   /v1/ga4/metadata:
     get:
@@ -49,6 +92,15 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  dimensions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Ga4MetadataField"
+                  metrics:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Ga4MetadataField"
                 additionalProperties: true
   /v1/gsc/query:
     post:
@@ -68,6 +120,13 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  rows:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GscRow"
+                  responseAggregationType:
+                    type: string
                 additionalProperties: true
   /v1/gsc/metadata:
     get:
@@ -80,6 +139,11 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  siteUrl:
+                    type: string
+                  permissionLevel:
+                    type: string
                 additionalProperties: true
   /v1/gsc/sitemaps:
     get:
@@ -92,6 +156,11 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  sitemap:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GscSitemap"
                 additionalProperties: true
   /v1/gsc/inspect:
     post:
@@ -118,6 +187,25 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  inspectionResult:
+                    type: object
+                    properties:
+                      inspectionResultLink:
+                        type: string
+                      indexStatusResult:
+                        type: object
+                        properties:
+                          verdict:
+                            type: string
+                          coverageState:
+                            type: string
+                          indexingState:
+                            type: string
+                          lastCrawlTime:
+                            type: string
+                        additionalProperties: true
+                    additionalProperties: true
                 additionalProperties: true
   /v1/google-ads/query:
     post:
@@ -144,6 +232,17 @@ paths:
                 type: array
                 items:
                   type: object
+                  properties:
+                    results:
+                      type: array
+                      items:
+                        type: object
+                        properties: {}
+                        additionalProperties: true
+                    fieldMask:
+                      type: string
+                    requestId:
+                      type: string
                   additionalProperties: true
   /v1/google-ads/metadata:
     get:
@@ -158,6 +257,17 @@ paths:
                 type: array
                 items:
                   type: object
+                  properties:
+                    results:
+                      type: array
+                      items:
+                        type: object
+                        properties: {}
+                        additionalProperties: true
+                    fieldMask:
+                      type: string
+                    requestId:
+                      type: string
                   additionalProperties: true
 components:
   securitySchemes:
@@ -166,6 +276,78 @@ components:
       in: header
       name: X-GROWTH-DATA-TOKEN
   schemas:
+    Ga4Header:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+      additionalProperties: true
+    Ga4Value:
+      type: object
+      properties:
+        value:
+          type: string
+      additionalProperties: true
+    Ga4Row:
+      type: object
+      properties:
+        dimensionValues:
+          type: array
+          items:
+            $ref: "#/components/schemas/Ga4Value"
+        metricValues:
+          type: array
+          items:
+            $ref: "#/components/schemas/Ga4Value"
+      additionalProperties: true
+    Ga4MetadataField:
+      type: object
+      properties:
+        apiName:
+          type: string
+        uiName:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+      additionalProperties: true
+    GscRow:
+      type: object
+      properties:
+        keys:
+          type: array
+          items:
+            type: string
+        clicks:
+          type: number
+        impressions:
+          type: number
+        ctr:
+          type: number
+        position:
+          type: number
+      additionalProperties: true
+    GscSitemap:
+      type: object
+      properties:
+        path:
+          type: string
+        lastSubmitted:
+          type: string
+        isPending:
+          type: boolean
+        isSitemapsIndex:
+          type: boolean
+        type:
+          type: string
+        warnings:
+          type: string
+        errors:
+          type: string
+      additionalProperties: true
     NamedField:
       type: object
       required: [name]
@@ -205,14 +387,17 @@ components:
             $ref: "#/components/schemas/NamedField"
         dimensionFilter:
           type: object
+          properties: {}
           additionalProperties: true
         metricFilter:
           type: object
+          properties: {}
           additionalProperties: true
         orderBys:
           type: array
           items:
             type: object
+            properties: {}
             additionalProperties: true
         limit:
           oneOf:
