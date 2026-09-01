@@ -7,8 +7,10 @@ import threading
 import time
 from urllib.parse import quote, urlparse
 
+import google.auth
 import requests
 from flask import Flask, jsonify, request
+from google.auth.transport.requests import Request as GoogleAuthRequest
 
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -49,7 +51,7 @@ GSC_AGGREGATIONS = {"auto", "byNewsShowcasePanel", "byPage", "byProperty"}
 
 app = Flask(__name__)
 _token_lock = threading.Lock()
-_token_cache = {"access_token": "", "expires_at": 0.0}
+_token_cache = {}
 
 
 def error(message: str, status: int):
@@ -73,8 +75,8 @@ def profile() -> dict:
     return value
 
 
-def oauth_info() -> dict:
-    raw = os.environ.get("GOOGLE_OAUTH_CREDENTIALS_JSON", "")
+def oauth_info(environment_name: str) -> dict:
+    raw = os.environ.get(environment_name, "")
     try:
         value = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -85,15 +87,52 @@ def oauth_info() -> dict:
     return value
 
 
-def access_token() -> str:
+def cached_token(source: str) -> str:
     now = time.monotonic()
-    if _token_cache["access_token"] and now < _token_cache["expires_at"]:
-        return _token_cache["access_token"]
+    cached = _token_cache.get(source, {})
+    if cached.get("access_token") and now < cached.get("expires_at", 0):
+        return cached["access_token"]
+    return ""
+
+
+def access_token(source: str) -> str:
+    token = cached_token(source)
+    if token:
+        return token
     with _token_lock:
-        now = time.monotonic()
-        if _token_cache["access_token"] and now < _token_cache["expires_at"]:
-            return _token_cache["access_token"]
-        info = oauth_info()
+        token = cached_token(source)
+        if token:
+            return token
+        if source == "ga4":
+            credentials, _ = google.auth.default(
+                scopes=["https://www.googleapis.com/auth/analytics.readonly"]
+            )
+            credentials.refresh(GoogleAuthRequest())
+            if not credentials.token:
+                raise RuntimeError("Google application credentials returned no token")
+            expires_in = 3600
+            if credentials.expiry:
+                expires_in = max(
+                    60,
+                    int(
+                        (
+                            credentials.expiry
+                            - dt.datetime.now(tz=credentials.expiry.tzinfo)
+                        ).total_seconds()
+                    ),
+                )
+            _token_cache[source] = {
+                "access_token": credentials.token,
+                "expires_at": time.monotonic() + max(60, expires_in - 300),
+            }
+            return credentials.token
+        environment_name = {
+            "gsc": "GSC_OAUTH_CREDENTIALS_JSON",
+            "googleAds": "GOOGLE_ADS_OAUTH_CREDENTIALS_JSON",
+        }.get(source)
+        if not environment_name:
+            raise RuntimeError("unsupported Google credential source")
+        info = oauth_info(environment_name)
         response = requests.post(
             TOKEN_URL,
             data={
@@ -110,14 +149,16 @@ def access_token() -> str:
         if not token:
             raise RuntimeError("Google OAuth did not return an access token")
         expires_in = int(payload.get("expires_in", 3600))
-        _token_cache["access_token"] = token
-        _token_cache["expires_at"] = time.monotonic() + max(60, expires_in - 300)
+        _token_cache[source] = {
+            "access_token": token,
+            "expires_at": time.monotonic() + max(60, expires_in - 300),
+        }
         return token
 
 
-def google_request(method: str, url: str, *, body=None, headers=None):
+def google_request(method: str, url: str, *, source: str, body=None, headers=None):
     request_headers = {
-        "Authorization": f"Bearer {access_token()}",
+        "Authorization": f"Bearer {access_token(source)}",
         "Accept": "application/json",
     }
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "").strip()
@@ -375,7 +416,7 @@ def ga4_report():
         property_name = ga4_property_name()
         body = sanitize_ga4_report(request.get_json(silent=True))
         response = google_request(
-            "POST", f"{GA4_BASE}/{property_name}:runReport", body=body
+            "POST", f"{GA4_BASE}/{property_name}:runReport", source="ga4", body=body
         )
     except ValueError as exc:
         return error(str(exc), 400)
@@ -391,7 +432,7 @@ def ga4_metadata():
         return error("unauthorized", 401)
     try:
         response = google_request(
-            "GET", f"{GA4_BASE}/{ga4_property_name()}/metadata"
+            "GET", f"{GA4_BASE}/{ga4_property_name()}/metadata", source="ga4"
         )
     except Exception:
         app.logger.exception("GA4 metadata request failed")
@@ -409,7 +450,10 @@ def gsc_query():
         encoded = quote(gsc_site_url(), safe="")
         body = sanitize_gsc_query(request.get_json(silent=True))
         response = google_request(
-            "POST", f"{GSC_BASE}/webmasters/v3/sites/{encoded}/searchAnalytics/query", body=body
+            "POST",
+            f"{GSC_BASE}/webmasters/v3/sites/{encoded}/searchAnalytics/query",
+            source="gsc",
+            body=body,
         )
     except ValueError as exc:
         return error(str(exc), 400)
@@ -425,7 +469,9 @@ def gsc_metadata():
         return error("unauthorized", 401)
     try:
         encoded = quote(gsc_site_url(), safe="")
-        response = google_request("GET", f"{GSC_BASE}/webmasters/v3/sites/{encoded}")
+        response = google_request(
+            "GET", f"{GSC_BASE}/webmasters/v3/sites/{encoded}", source="gsc"
+        )
     except Exception:
         app.logger.exception("GSC metadata request failed")
         return error("GSC request failed", 502)
@@ -438,7 +484,11 @@ def gsc_sitemaps():
         return error("unauthorized", 401)
     try:
         encoded = quote(gsc_site_url(), safe="")
-        response = google_request("GET", f"{GSC_BASE}/webmasters/v3/sites/{encoded}/sitemaps")
+        response = google_request(
+            "GET",
+            f"{GSC_BASE}/webmasters/v3/sites/{encoded}/sitemaps",
+            source="gsc",
+        )
     except Exception:
         app.logger.exception("GSC sitemaps request failed")
         return error("GSC request failed", 502)
@@ -453,7 +503,12 @@ def gsc_inspect():
         return error("request body is too large", 413)
     try:
         body = sanitize_gsc_inspection(request.get_json(silent=True))
-        response = google_request("POST", f"{GSC_BASE}/v1/urlInspection/index:inspect", body=body)
+        response = google_request(
+            "POST",
+            f"{GSC_BASE}/v1/urlInspection/index:inspect",
+            source="gsc",
+            body=body,
+        )
     except ValueError as exc:
         return error(str(exc), 400)
     except Exception:
@@ -473,6 +528,7 @@ def ads_request(query: str):
     return google_request(
         "POST",
         f"{ADS_BASE}/v25/customers/{config['customerId']}/googleAds:searchStream",
+        source="googleAds",
         body={"query": query},
         headers=headers,
     )

@@ -1,6 +1,6 @@
 # Growth Data Reader Skill
 
-> 一个 Profile、一次 Google OAuth、一个 Reader Token，让飞书 Aily 与 WorkBuddy 统一读取 GA4、Google Search Console 和 Google Ads。
+> 一个 Profile、一组 Google 只读授权、一个 Reader Token，让飞书 Aily、WorkBuddy 与 GPTs 统一读取 GA4、Google Search Console 和 Google Ads。
 
 [![GA4](https://img.shields.io/badge/Data-GA4-E37400)](https://developers.google.com/analytics/devguides/reporting/data/v1)
 [![GSC](https://img.shields.io/badge/Data-Search%20Console-458CF5)](https://developers.google.com/webmaster-tools)
@@ -91,13 +91,23 @@ Skill 不保存账户 ID。Gateway 从 `ACCOUNT_PROFILE_JSON` 固定三个账户
 
 安装步骤见 [双平台安装](docs/installation.md)，账户迁移见 [迁移指南](docs/migration.md)。
 
+## GPTs
+
+GPTs 不直接安装 `.skill`，而是通过 GPT Action 调用统一 Gateway。本项目提供可直接粘贴的：
+
+- [OpenAPI 架构](gpts/openapi.yaml)
+- [GPT Instructions](gpts/GPT_INSTRUCTIONS.md)
+- [GPTs 配置步骤](gpts/SETUP.md)
+- [隐私政策](gpts/PRIVACY.md)
+
 ## 部署概要
 
 统一 Gateway 使用：
 
 ```text
 ACCOUNT_PROFILE_JSON=<非敏感账户 Profile>
-GOOGLE_OAUTH_CREDENTIALS_JSON=<组合 OAuth Secret>
+GSC_OAUTH_CREDENTIALS_JSON=<GSC OAuth Secret>
+GOOGLE_ADS_OAUTH_CREDENTIALS_JSON=<Google Ads OAuth Secret>
 GOOGLE_ADS_DEVELOPER_TOKEN=<Developer Token Secret>
 GROWTH_DATA_READER_TOKEN=<团队 Reader Token Secret>
 ```

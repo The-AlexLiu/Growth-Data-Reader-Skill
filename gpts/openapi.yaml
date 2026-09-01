@@ -1,0 +1,297 @@
+openapi: 3.1.0
+info:
+  title: INIA Growth Data API
+  description: Read-only access to the configured INIA GA4, Google Search Console, and Google Ads accounts.
+  version: 1.0.0
+servers:
+  - url: https://growth-data-gateway-367833408331.us-central1.run.app
+paths:
+  /v1/profile:
+    get:
+      operationId: readGrowthDataProfile
+      summary: Read the configured brand and account profile
+      description: Always call this first in a new conversation to confirm which brand and sources are configured.
+      responses:
+        "200":
+          description: Configured non-secret account profile
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /v1/ga4/report:
+    post:
+      operationId: runGa4Report
+      summary: Run a read-only GA4 Data API report
+      description: Query GA4 dimensions and metrics. The Property is fixed by the server and cannot be supplied by the caller.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Ga4ReportRequest"
+      responses:
+        "200":
+          description: GA4 report response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /v1/ga4/metadata:
+    get:
+      operationId: readGa4Metadata
+      summary: List available GA4 dimensions and metrics
+      responses:
+        "200":
+          description: GA4 metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /v1/gsc/query:
+    post:
+      operationId: querySearchConsole
+      summary: Query Google Search Console search performance
+      description: Query clicks, impressions, CTR, and position. The Search Console Property is fixed by the server.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GscQueryRequest"
+      responses:
+        "200":
+          description: Search Analytics response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /v1/gsc/metadata:
+    get:
+      operationId: readSearchConsoleMetadata
+      summary: Read the configured Search Console Property metadata
+      responses:
+        "200":
+          description: Search Console Property metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /v1/gsc/sitemaps:
+    get:
+      operationId: listSearchConsoleSitemaps
+      summary: List submitted sitemaps and their status
+      responses:
+        "200":
+          description: Sitemap list
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /v1/gsc/inspect:
+    post:
+      operationId: inspectSearchConsoleUrl
+      summary: Inspect one URL under the configured Search Console Property
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [inspectionUrl]
+              properties:
+                inspectionUrl:
+                  type: string
+                  format: uri
+                languageCode:
+                  type: string
+                  default: zh-CN
+      responses:
+        "200":
+          description: URL Inspection response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /v1/google-ads/query:
+    post:
+      operationId: queryGoogleAds
+      summary: Run one read-only Google Ads GAQL SELECT query
+      description: Use GAQL SELECT only. The customer and manager account IDs are fixed by the server. Never request mutations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  description: One GAQL SELECT statement without a semicolon. LIMIT is capped at 10000.
+      responses:
+        "200":
+          description: Google Ads searchStream response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+  /v1/google-ads/metadata:
+    get:
+      operationId: readGoogleAdsMetadata
+      summary: Read Google Ads account name, currency, and time zone
+      responses:
+        "200":
+          description: Google Ads customer metadata
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+components:
+  securitySchemes:
+    GrowthDataToken:
+      type: apiKey
+      in: header
+      name: X-GROWTH-DATA-TOKEN
+  schemas:
+    NamedField:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    Ga4DateRange:
+      type: object
+      required: [startDate, endDate]
+      properties:
+        startDate:
+          type: string
+          description: YYYY-MM-DD, yesterday, today, or NdaysAgo
+        endDate:
+          type: string
+          description: YYYY-MM-DD, yesterday, today, or NdaysAgo
+        name:
+          type: string
+    Ga4ReportRequest:
+      type: object
+      required: [dateRanges, metrics]
+      properties:
+        dateRanges:
+          type: array
+          minItems: 1
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/Ga4DateRange"
+        dimensions:
+          type: array
+          items:
+            $ref: "#/components/schemas/NamedField"
+        metrics:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/NamedField"
+        dimensionFilter:
+          type: object
+          additionalProperties: true
+        metricFilter:
+          type: object
+          additionalProperties: true
+        orderBys:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        limit:
+          oneOf:
+            - type: integer
+            - type: string
+          default: 1000
+        offset:
+          oneOf:
+            - type: integer
+            - type: string
+          default: 0
+        keepEmptyRows:
+          type: boolean
+        currencyCode:
+          type: string
+    GscDimensionFilter:
+      type: object
+      required: [dimension, expression]
+      properties:
+        dimension:
+          type: string
+          enum: [country, date, device, hour, page, query, searchAppearance]
+        operator:
+          type: string
+          enum: [contains, equals, excludingRegex, includingRegex, notContains, notEquals]
+          default: equals
+        expression:
+          type: string
+    GscFilterGroup:
+      type: object
+      properties:
+        groupType:
+          type: string
+          enum: [and]
+          default: and
+        filters:
+          type: array
+          items:
+            $ref: "#/components/schemas/GscDimensionFilter"
+    GscQueryRequest:
+      type: object
+      required: [startDate, endDate]
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        dimensions:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+            enum: [country, date, device, hour, page, query, searchAppearance]
+        dimensionFilterGroups:
+          type: array
+          items:
+            $ref: "#/components/schemas/GscFilterGroup"
+        type:
+          type: string
+          enum: [discover, googleNews, image, news, video, web]
+          default: web
+        dataState:
+          type: string
+          enum: [all, final, hourly_all]
+          default: final
+        aggregationType:
+          type: string
+          enum: [auto, byNewsShowcasePanel, byPage, byProperty]
+          default: auto
+        rowLimit:
+          type: integer
+          minimum: 1
+          maximum: 25000
+          default: 1000
+        startRow:
+          type: integer
+          minimum: 0
+          default: 0
+security:
+  - GrowthDataToken: []
